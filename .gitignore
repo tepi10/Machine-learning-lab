@@ -1,0 +1,5 @@
+dataset/
+face_model.h5
+labels.npy
+__pycache__/
+*.pyc
