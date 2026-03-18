@@ -1,45 +1,64 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Generate dataset (realistic clusters)
-np.random.seed(42)
+# -------- Step 1: Get User Input --------
+n = int(input("Enter number of data points: "))
+data = []
 
-data = np.vstack((
-    np.random.normal(loc=[25, 30], scale=5, size=(50, 2)),
-    np.random.normal(loc=[45, 60], scale=5, size=(50, 2)),
-    np.random.normal(loc=[35, 80], scale=5, size=(50, 2))
-))
+print("Enter the data points (x y):")
+for i in range(n):
+    x, y = map(float, input(f"Point {i+1}: ").split())
+    data.append([x, y])
 
-# K-Means Algorithm
-def kmeans(X, k, max_iters=100):
-    centroids = X[np.random.choice(len(X), k, replace=False)]
+X = np.array(data)
 
-    for _ in range(max_iters):
-        distances = np.linalg.norm(X[:, np.newaxis] - centroids, axis=2)
-        clusters = np.argmin(distances, axis=1)
+K = int(input("Enter number of clusters (K): "))
 
-        new_centroids = np.array([X[clusters == i].mean(axis=0) for i in range(k)])
+# -------- Step 2: Initialize Centroids --------
+np.random.seed(0)
+centroids = X[np.random.choice(n, K, replace=False)]
 
-        if np.all(centroids == new_centroids):
-            break
+# -------- Step 3: Distance Function --------
+def euclidean_distance(a, b):
+    return np.sqrt(np.sum((a - b) ** 2))
 
-        centroids = new_centroids
+# -------- Step 4: K-Means Algorithm --------
+for iteration in range(100):
+    clusters = [[] for _ in range(K)]
+    
+    # Assign points to nearest centroid
+    for point in X:
+        distances = [euclidean_distance(point, centroid) for centroid in centroids]
+        cluster_index = np.argmin(distances)
+        clusters[cluster_index].append(point)
+    
+    old_centroids = centroids.copy()
+    
+    # Update centroids
+    for i in range(K):
+        if len(clusters[i]) > 0:
+            centroids[i] = np.mean(clusters[i], axis=0)
+    
+    # Stop if centroids don't change
+    if np.allclose(old_centroids, centroids):
+        break
 
-    return clusters, centroids
+# -------- Step 5: Display Results --------
+print("\nFinal Centroids:")
+print(centroids)
 
-# Run model
-k = 3
-clusters, centroids = kmeans(data, k)
+# -------- Step 6: Plot Clusters --------
+colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan']
 
-print("Centroids:\n", centroids)
+plt.figure()
+for i in range(K):
+    cluster_points = np.array(clusters[i])
+    if len(cluster_points) > 0:
+        plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c=colors[i % len(colors)], label=f"Cluster {i+1}")
 
-# Plot
-plt.scatter(data[:, 0], data[:, 1], c=clusters)
-plt.scatter(centroids[:, 0], centroids[:, 1], marker='X', s=200)
-
-plt.title("K-Means Clustering")
-plt.xlabel("Feature 1")
-plt.ylabel("Feature 2")
-plt.grid()
-
+plt.scatter(centroids[:, 0], centroids[:, 1], c='black', marker='x', s=200, label="Centroids")
+plt.title("K-Means Clustering (User Input)")
+plt.xlabel("X-axis")
+plt.ylabel("Y-axis")
+plt.legend()
 plt.show()
