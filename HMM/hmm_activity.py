@@ -1,84 +1,104 @@
-import numpy as np
-import matplotlib.pyplot as plt
+# Hidden Markov Model using Viterbi Algorithm
+# All inputs are taken from the user
 
-# States and observations
-states = ["Walking", "Running", "Sitting"]
-observations = ["Low", "Medium", "High"]
+# -------- USER INPUT SECTION --------
+n_states = int(input("Enter number of states: "))
+states = []
+for i in range(n_states):
+    states.append(input(f"Enter state {i+1} name: "))
 
-# Mapping
-state_map = {s:i for i,s in enumerate(states)}
-obs_map = {o:i for i,o in enumerate(observations)}
-
-# Transition Probabilities
-A = np.array([
-    [0.6, 0.3, 0.1],
-    [0.4, 0.5, 0.1],
-    [0.2, 0.1, 0.7]
-])
-
-# Emission Probabilities
-B = np.array([
-    [0.2, 0.6, 0.2],
-    [0.1, 0.3, 0.6],
-    [0.7, 0.2, 0.1]
-])
+n_obs_types = int(input("\nEnter number of observation types: "))
+observations_list = []
+for i in range(n_obs_types):
+    observations_list.append(input(f"Enter observation type {i+1}: "))
 
 # Initial Probabilities
-pi = np.array([0.5, 0.3, 0.2])
+print("\nEnter Initial Probabilities:")
+start_prob = {}
+for s in states:
+    start_prob[s] = float(input(f"P({s}): "))
 
-# Viterbi Algorithm
-def viterbi(obs_seq, A, B, pi):
-    n_states = A.shape[0]
-    T = len(obs_seq)
+# Transition Probabilities
+print("\nEnter Transition Probabilities:")
+trans_prob = {}
+for s in states:
+    trans_prob[s] = {}
+    for s2 in states:
+        trans_prob[s][s2] = float(input(f"P({s} → {s2}): "))
 
-    dp = np.zeros((n_states, T))
-    ptr = np.zeros((n_states, T), dtype=int)
+# Emission Probabilities
+print("\nEnter Emission Probabilities:")
+emit_prob = {}
+for s in states:
+    emit_prob[s] = {}
+    for obs in observations_list:
+        emit_prob[s][obs] = float(input(f"P({obs}|{s}): "))
 
-    # Initialization
-    dp[:, 0] = pi * B[:, obs_seq[0]]
+# -------- OBSERVATION SEQUENCE INPUT --------
+while True:
+    obs_input = input("\nEnter observation sequence separated by space: ")
+    observations = obs_input.split()
+    
+    if all(obs in observations_list for obs in observations):
+        break
+    else:
+        print("❌ Invalid observation entered.")
 
-    # Recursion
-    for t in range(1, T):
-        for s in range(n_states):
-            prob = dp[:, t-1] * A[:, s] * B[s, obs_seq[t]]
-            ptr[s, t] = np.argmax(prob)
-            dp[s, t] = np.max(prob)
+# -------- MATRIX DISPLAY --------
+print("\nInitial Probabilities:")
+for s in states:
+    print(f"{s}: {start_prob[s]}")
 
-    # Backtracking
-    best_path = np.zeros(T, dtype=int)
-    best_path[T-1] = np.argmax(dp[:, T-1])
+print("\nTransition Probability Matrix:")
+print("\t" + "\t".join(states))
+for s in states:
+    row = [str(trans_prob[s][s2]) for s2 in states]
+    print(f"{s}\t" + "\t".join(row))
 
-    for t in range(T-2, -1, -1):
-        best_path[t] = ptr[best_path[t+1], t+1]
+print("\nEmission Probability Matrix:")
+print("\t" + "\t".join(observations_list))
+for s in states:
+    row = [str(emit_prob[s][o]) for o in observations_list]
+    print(f"{s}\t" + "\t".join(row))
 
-    return best_path
+# -------- VITERBI ALGORITHM --------
+V = [{}]
+path = {}
 
-# Observation sequence
-obs_sequence = ["Low", "Medium", "High", "High", "Medium", "Low", "Low"]
-obs_seq = [obs_map[o] for o in obs_sequence]
+# Initialize
+for state in states:
+    V[0][state] = start_prob[state] * emit_prob[state][observations[0]]
+    path[state] = [state]
 
-# Run model
-path = viterbi(obs_seq, A, B, pi)
-predicted_states = [states[i] for i in path]
+print("\nStep-by-Step Viterbi Table")
+print(f"\nStep 1 Observation: {observations[0]}")
+for state in states:
+    print(f"{state}: {V[0][state]:.6f}")
 
-print("Observations:", obs_sequence)
-print("Predicted States:", predicted_states)
+# Recursion
+for t in range(1, len(observations)):
+    V.append({})
+    new_path = {}
+    print(f"\nStep {t+1} Observation: {observations[t]}")
+    
+    for curr_state in states:
+        max_prob, prev_state_selected = max(
+            (V[t-1][prev_state] *
+             trans_prob[prev_state][curr_state] *
+             emit_prob[curr_state][observations[t]], prev_state)
+            for prev_state in states
+        )
 
-# Accuracy check
-true_states = ["Sitting", "Walking", "Running", "Running", "Walking", "Sitting", "Sitting"]
+        V[t][curr_state] = max_prob
+        new_path[curr_state] = path[prev_state_selected] + [curr_state]
+        print(f"{curr_state}: {max_prob:.6f} (from {prev_state_selected})")
 
-correct = sum(p == t for p, t in zip(predicted_states, true_states))
-accuracy = correct / len(true_states)
+    path = new_path
 
-print("Accuracy:", accuracy)
+# Final result
+max_prob, final_state = max((V[-1][state], state) for state in states)
+best_path = path[final_state]
 
-# Visualization
-state_numeric = [state_map[s] for s in predicted_states]
-
-plt.plot(state_numeric, marker='o')
-plt.yticks(range(len(states)), states)
-plt.title("Predicted Activity Over Time")
-plt.xlabel("Time Step")
-plt.ylabel("State")
-plt.grid()
-plt.show()
+print("\nMost likely state sequence:")
+print(" → ".join(best_path))
+print(f"Final Probability: {max_prob:.6f}")
